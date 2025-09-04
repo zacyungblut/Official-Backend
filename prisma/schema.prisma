@@ -14,6 +14,7 @@ model User {
   name              String?
   relationshipStatus Status   @default(SINGLE)
   verificationCode  String?
+  verified          Boolean  @default(false)
 
   // Relationships this user is part of
   relationships     Relationship[]
