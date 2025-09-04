@@ -12,7 +12,6 @@ model User {
   id                String   @id @default(uuid())
   phone             String   @unique
   name              String?
-  relationshipStatus Status   @default(SINGLE)
   verificationCode  String?
   verified          Boolean  @default(false)
 
@@ -28,7 +27,7 @@ model User {
 
 model Relationship {
   id        String   @id @default(uuid())
-  status    Status   @default(RELATIONSHIP)
+  status    Status   @default(DATING)
   startDate DateTime @default(now())
   endDate   DateTime? // Optional end date - null means relationship is ongoing
 
@@ -58,9 +57,16 @@ model Invite {
 
 // Enum for relationship types
 enum Status {
-  SINGLE
-  RELATIONSHIP
+  DATING
+  ENGAGED
+  MARRIED
+  SEPARATED
+  WIDOWED
   SITUATIONSHIP
+  FRIENDS_WITH_BENEFITS
+  ON_A_BREAK
+  OPEN_RELATIONSHIP
+  POLYAMOROUS
 }
 
 // Enum for invite status
