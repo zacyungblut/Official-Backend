@@ -1,36 +1,34 @@
-import { Response, NextFunction } from "express";
-import jwt, { JwtPayload } from "jsonwebtoken";
-import { AuthenticatedRequest } from "../types/types";
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 
-interface CustomJwtPayload extends JwtPayload {
-  userId: string;
+const JWT_SECRET = process.env["JWT_SECRET"] || "your-jwt-secret-key";
+
+export interface AuthenticatedRequest extends Request {
+  user?: {
+    userId: string;
+    phone: string;
+  };
 }
 
-export const verifyToken = async (
+export function authenticateToken(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
-) => {
-  try {
-    const token = req.headers.authorization?.split(" ")[1];
+) {
+  console.log("Authenticating token");
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
 
-    if (!token) {
-      return res.status(401).json({ message: "No token provided" });
-    }
-
-    const decoded = jwt.verify(
-      token,
-      process.env["JWT_SECRET"]!
-    ) as CustomJwtPayload;
-
-    req.user = {
-      userId: decoded.userId,
-      _id: decoded.userId,
-    };
-
-    return next();
-  } catch (error) {
-    console.error("Token verification failed:", error);
-    return res.status(401).json({ message: "Invalid token" });
+  if (!token) {
+    return res.status(401).json({ error: "Access token required" });
   }
-};
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: "Invalid or expired token" });
+    }
+    req.user = user as { userId: string; phone: string };
+    return next();
+  });
+  return;
+}

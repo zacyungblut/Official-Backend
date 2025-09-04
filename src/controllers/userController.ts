@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import jwt from "jsonwebtoken";
+import { AuthenticatedRequest } from "../middleware/middleware";
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env["JWT_SECRET"] || "your-jwt-secret-key";
@@ -123,6 +124,38 @@ export async function verifyCode(req: Request, res: Response) {
     });
   } catch (error) {
     console.error("Verification error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function getCurrentUser(req: AuthenticatedRequest, res: Response) {
+  console.log("Getting current user");
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        phone: true,
+        name: true,
+        relationshipStatus: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    return res.status(200).json({ user });
+  } catch (error) {
+    console.error("Get current user error:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 }
