@@ -1,0 +1,21 @@
+model User {
+  id                String   @id @default(uuid())
+  phone             String   @unique
+  name              String?
+  relationshipStatus Status   @default(SINGLE)
+  verificationCode  String?
+
+  // Self-relation: a user can be linked to many other users
+  partners          User[]   @relation("UserPartners")
+  partneredWith     User[]   @relation("UserPartners")
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Enum for relationship types
+enum Status {
+  SINGLE
+  RELATIONSHIP
+  SITUATIONSHIP
+}
