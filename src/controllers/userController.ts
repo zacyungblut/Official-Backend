@@ -51,17 +51,36 @@ export async function signup(req: Request, res: Response) {
     const verificationCode = generateVerificationCode();
 
     if (existingUser) {
-      // Update existing user with new verification code
-      await prisma.user.update({
-        where: { phone },
-        data: { verificationCode },
-      });
+      // If user exists and is already verified, this is a login attempt
+      if (existingUser.verified) {
+        // Update with new verification code for login
+        await prisma.user.update({
+          where: { phone },
+          data: { verificationCode },
+        });
+
+        // Send SMS verification code
+        await sendSMSVerificationCode(phone, verificationCode);
+
+        return res.status(200).json({
+          message: "Login verification code sent successfully",
+          phone,
+          isExistingUser: true,
+        });
+      } else {
+        // User exists but not verified, update verification code
+        await prisma.user.update({
+          where: { phone },
+          data: { verificationCode },
+        });
+      }
     } else {
       // Create new user with verification code
       await prisma.user.create({
         data: {
           phone,
           verificationCode,
+          verified: false,
         },
       });
     }
@@ -72,6 +91,7 @@ export async function signup(req: Request, res: Response) {
     return res.status(200).json({
       message: "Verification code sent successfully",
       phone,
+      isExistingUser: !!existingUser,
     });
   } catch (error) {
     console.error("Signup error:", error);
@@ -102,10 +122,13 @@ export async function verifyCode(req: Request, res: Response) {
       return res.status(400).json({ error: "Invalid verification code" });
     }
 
-    // Clear verification code and generate JWT token
+    // Clear verification code, set verified to true, and generate JWT token
     await prisma.user.update({
       where: { phone },
-      data: { verificationCode: null },
+      data: {
+        verificationCode: null,
+        verified: true,
+      },
     });
 
     const token = jwt.sign({ userId: user.id, phone: user.phone }, JWT_SECRET, {
@@ -120,6 +143,7 @@ export async function verifyCode(req: Request, res: Response) {
         phone: user.phone,
         name: user.name,
         relationshipStatus: user.relationshipStatus,
+        verified: true,
       },
     });
   } catch (error) {
@@ -144,13 +168,16 @@ export async function getCurrentUser(req: AuthenticatedRequest, res: Response) {
         phone: true,
         name: true,
         relationshipStatus: true,
+        verified: true,
         createdAt: true,
         updatedAt: true,
       },
     });
 
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+    if (!user || user.verified !== true) {
+      return res
+        .status(404)
+        .json({ error: "User not found or is not verified" });
     }
 
     return res.status(200).json({ user });
