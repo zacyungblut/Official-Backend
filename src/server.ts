@@ -7,7 +7,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.use("/users", userRoutes);
+app.use("/auth", userRoutes);
 
 app.get("/", (_req, res) => {
   res.send("API is running 🚀");
