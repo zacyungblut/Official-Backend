@@ -15,15 +15,27 @@ model User {
   relationshipStatus Status   @default(SINGLE)
   verificationCode  String?
 
-  // Self-relation: a user can be linked to many other users
-  partners          User[]   @relation("UserPartners")
-  partneredWith     User[]   @relation("UserPartners")
+  // Relationships this user is part of
+  relationships     Relationship[]
   
   // Invites sent by this user
   sentInvites       Invite[] @relation("UserSentInvites")
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+model Relationship {
+  id        String   @id @default(uuid())
+  status    Status   @default(RELATIONSHIP)
+  startDate DateTime @default(now())
+  endDate   DateTime? // Optional end date - null means relationship is ongoing
+
+  // The users in this relationship
+  users     User[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Invite {
