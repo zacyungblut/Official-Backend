@@ -4,7 +4,7 @@ import {
   signup,
   verifyCode,
   getCurrentUser,
-} from "../controllers/userController";
+} from "../controllers/authController";
 import { authenticateToken } from "../middleware/middleware";
 
 const router = express.Router();

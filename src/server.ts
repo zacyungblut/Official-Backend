@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import userRoutes from "./routes/userRoutes";
+import authRoutes from "./routes/authRoutes";
 import inviteRoutes from "./routes/inviteRoutes";
 import searchRoutes from "./routes/searchRoutes";
 
@@ -9,7 +9,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.use("/auth", userRoutes);
+app.use("/auth", authRoutes);
 app.use("/invites", inviteRoutes);
 app.use("/search", searchRoutes);
 
