@@ -142,7 +142,6 @@ export async function verifyCode(req: Request, res: Response) {
         id: user.id,
         phone: user.phone,
         name: user.name,
-        relationshipStatus: user.relationshipStatus,
         verified: true,
       },
     });
@@ -156,8 +155,9 @@ export async function getCurrentUser(req: AuthenticatedRequest, res: Response) {
   console.log("Getting current user");
   try {
     const userId = req.user?.userId;
+    const userPhone = req.user?.phone;
 
-    if (!userId) {
+    if (!userId || !userPhone) {
       return res.status(401).json({ error: "User not authenticated" });
     }
 
@@ -167,10 +167,20 @@ export async function getCurrentUser(req: AuthenticatedRequest, res: Response) {
         id: true,
         phone: true,
         name: true,
-        relationshipStatus: true,
         verified: true,
         createdAt: true,
         updatedAt: true,
+        relationships: {
+          include: {
+            users: {
+              select: {
+                id: true,
+                phone: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -180,7 +190,25 @@ export async function getCurrentUser(req: AuthenticatedRequest, res: Response) {
         .json({ error: "User not found or is not verified" });
     }
 
-    return res.status(200).json({ user });
+    // Get invites sent by user
+    const sentInvites = await prisma.invite.findMany({
+      where: { senderPhone: userPhone },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Get invites received by user
+    const receivedInvites = await prisma.invite.findMany({
+      where: { recipientPhone: userPhone },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return res.status(200).json({
+      user: {
+        ...user,
+        sentInvites,
+        receivedInvites,
+      },
+    });
   } catch (error) {
     console.error("Get current user error:", error);
     return res.status(500).json({ error: "Internal server error" });
