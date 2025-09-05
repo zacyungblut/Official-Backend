@@ -310,15 +310,9 @@ export async function getCurrentUser(req: AuthenticatedRequest, res: Response) {
         .json({ error: "User not found or is not verified" });
     }
 
-    // Get invites sent by user
+    // Get invites sent by user only
     const sentInvites = await prisma.invite.findMany({
       where: { senderPhone: userPhone },
-      orderBy: { createdAt: "desc" },
-    });
-
-    // Get invites received by user
-    const receivedInvites = await prisma.invite.findMany({
-      where: { recipientPhone: userPhone },
       orderBy: { createdAt: "desc" },
     });
 
@@ -326,7 +320,6 @@ export async function getCurrentUser(req: AuthenticatedRequest, res: Response) {
       user: {
         ...user,
         sentInvites,
-        receivedInvites,
       },
     });
   } catch (error) {

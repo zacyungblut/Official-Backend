@@ -98,32 +98,18 @@ async function sendSMSVerificationCode(
   }
 }
 
-// TODO: Replace with actual SMS implementation
-async function sendInviteSMS(
-  recipientPhone: string,
-  senderPhone: string,
-  relationshipType: string,
-  inviteId: string
-): Promise<void> {
-  console.log(`Sending invite SMS to ${recipientPhone} from ${senderPhone}`);
-  console.log(`Relationship: ${relationshipType}, Invite ID: ${inviteId}`);
-  // For now, just log. In production, implement SMS service here:
-  // const message = `${senderPhone} wants to make it official! They've invited you to be their ${relationshipType.toLowerCase()}. Click here to respond: [INVITE_LINK]`;
-  // await smsService.send(recipientPhone, message);
-}
-
 export async function sendInvite(req: AuthenticatedRequest, res: Response) {
   try {
-    const { recipientPhone, relationshipType } = req.body;
+    const { relationshipType } = req.body;
     const senderPhone = req.user?.phone;
 
     if (!senderPhone) {
       return res.status(401).json({ error: "User not authenticated" });
     }
 
-    if (!recipientPhone || !relationshipType) {
+    if (!relationshipType) {
       return res.status(400).json({
-        error: "Recipient phone number and relationship type are required",
+        error: "Relationship type is required",
       });
     }
 
@@ -135,59 +121,20 @@ export async function sendInvite(req: AuthenticatedRequest, res: Response) {
       return res.status(400).json({ error: "Invalid relationship type" });
     }
 
-    // Check if sender can't invite themselves
-    if (senderPhone === recipientPhone) {
-      return res.status(400).json({ error: "Cannot send invite to yourself" });
-    }
-
-    // Check if there's already a pending invite between these users
-    const existingInvite = await prisma.invite.findUnique({
-      where: {
-        senderPhone_recipientPhone: {
-          senderPhone,
-          recipientPhone,
-        },
-      },
-    });
-
-    if (existingInvite && existingInvite.status === "PENDING") {
-      return res.status(400).json({
-        error: "You already have a pending invite to this phone number",
-      });
-    }
-
-    // Create or update the invite
-    const invite = await prisma.invite.upsert({
-      where: {
-        senderPhone_recipientPhone: {
-          senderPhone,
-          recipientPhone,
-        },
-      },
-      update: {
-        status: "PENDING",
-        updatedAt: new Date(),
-      },
-      create: {
+    // Create the invite
+    const invite = await prisma.invite.create({
+      data: {
         senderPhone,
-        recipientPhone,
+        relationshipType: mappedRelationshipType as any,
         status: "PENDING",
       },
     });
-
-    // Send SMS notification
-    await sendInviteSMS(
-      recipientPhone,
-      senderPhone,
-      relationshipType,
-      invite.id
-    );
 
     return res.status(200).json({
-      message: "Invite sent successfully",
+      message: "Invite created successfully",
       invite: {
         id: invite.id,
-        recipientPhone,
+        relationshipType: invite.relationshipType,
         status: invite.status,
         createdAt: invite.createdAt,
       },
@@ -206,20 +153,14 @@ export async function getInvites(req: AuthenticatedRequest, res: Response) {
       return res.status(401).json({ error: "User not authenticated" });
     }
 
-    // Get invites sent by user and received by user
+    // Get invites sent by user only
     const sentInvites = await prisma.invite.findMany({
       where: { senderPhone: userPhone },
       orderBy: { createdAt: "desc" },
     });
 
-    const receivedInvites = await prisma.invite.findMany({
-      where: { recipientPhone: userPhone },
-      orderBy: { createdAt: "desc" },
-    });
-
     return res.status(200).json({
       sentInvites,
-      receivedInvites,
     });
   } catch (error) {
     console.error("Get invites error:", error);
@@ -264,7 +205,7 @@ export async function respondToInvite(
     }
 
     // Check if the user is the recipient
-    if (invite.recipientPhone !== userPhone) {
+    if (invite.senderPhone !== userPhone) {
       return res
         .status(403)
         .json({ error: "Not authorized to respond to this invite" });
@@ -298,7 +239,7 @@ export async function respondToInvite(
               },
               {
                 users: {
-                  some: { phone: invite.recipientPhone },
+                  some: { phone: invite.senderPhone },
                 },
               },
               {
@@ -326,7 +267,7 @@ export async function respondToInvite(
               users: {
                 connect: [
                   { phone: invite.senderPhone },
-                  { phone: invite.recipientPhone },
+                  { phone: invite.senderPhone },
                 ],
               },
             },
@@ -342,11 +283,11 @@ export async function respondToInvite(
           });
 
           console.log(
-            `Created new relationship between ${invite.senderPhone} and ${invite.recipientPhone}`
+            `Created new relationship between ${invite.senderPhone} and ${invite.senderPhone}`
           );
         } else {
           console.log(
-            `Relationship already exists between ${invite.senderPhone} and ${invite.recipientPhone}`
+            `Relationship already exists between ${invite.senderPhone} and ${invite.senderPhone}`
           );
           relationship = existingRelationship;
         }
@@ -471,7 +412,6 @@ export async function getInviteById(req: AuthenticatedRequest, res: Response) {
         id: invite.id,
         senderPhone: invite.senderPhone,
         senderName: invite.sender.name,
-        recipientPhone: invite.recipientPhone,
         status: invite.status,
         message: invite.message,
         createdAt: invite.createdAt,
@@ -522,7 +462,6 @@ export async function getPublicInviteById(req: any, res: Response) {
         id: invite.id,
         senderPhone: invite.senderPhone,
         senderName: invite.sender.name,
-        recipientPhone: invite.recipientPhone,
         status: invite.status,
         message: invite.message,
         createdAt: invite.createdAt,
@@ -582,18 +521,18 @@ export async function respondToPublicInvite(req: any, res: Response) {
 
       // Create or find the recipient user (the person responding to the invite)
       let recipientUser = await tx.user.findUnique({
-        where: { phone: invite.recipientPhone },
+        where: { phone: invite.senderPhone },
       });
 
       if (!recipientUser) {
         // Create new user for the recipient with verified: false
         recipientUser = await tx.user.create({
           data: {
-            phone: invite.recipientPhone,
+            phone: invite.senderPhone,
             verified: false,
           },
         });
-        console.log(`Created new user for recipient: ${invite.recipientPhone}`);
+        console.log(`Created new user for recipient: ${invite.senderPhone}`);
       }
 
       let relationship = null;
@@ -611,7 +550,7 @@ export async function respondToPublicInvite(req: any, res: Response) {
               },
               {
                 users: {
-                  some: { phone: invite.recipientPhone },
+                  some: { phone: invite.senderPhone },
                 },
               },
               {
@@ -639,7 +578,7 @@ export async function respondToPublicInvite(req: any, res: Response) {
               users: {
                 connect: [
                   { phone: invite.senderPhone },
-                  { phone: invite.recipientPhone },
+                  { phone: invite.senderPhone },
                 ],
               },
             },
@@ -655,11 +594,11 @@ export async function respondToPublicInvite(req: any, res: Response) {
           });
 
           console.log(
-            `Created new relationship between ${invite.senderPhone} and ${invite.recipientPhone}`
+            `Created new relationship between ${invite.senderPhone} and ${invite.senderPhone}`
           );
         } else {
           console.log(
-            `Relationship already exists between ${invite.senderPhone} and ${invite.recipientPhone}`
+            `Relationship already exists between ${invite.senderPhone} and ${invite.senderPhone}`
           );
           relationship = existingRelationship;
         }
@@ -821,7 +760,7 @@ export async function verifyCodeAndAcceptInvite(req: any, res: Response) {
     }
 
     // Verify that the phone number matches the invite recipient
-    if (invite.recipientPhone !== normalizedPhone) {
+    if (invite.senderPhone !== normalizedPhone) {
       return res.status(400).json({
         error: "Phone number does not match the invite recipient",
       });
@@ -870,7 +809,7 @@ export async function verifyCodeAndAcceptInvite(req: any, res: Response) {
             },
             {
               users: {
-                some: { phone: invite.recipientPhone },
+                some: { phone: invite.senderPhone },
               },
             },
             {
@@ -900,7 +839,7 @@ export async function verifyCodeAndAcceptInvite(req: any, res: Response) {
             users: {
               connect: [
                 { phone: invite.senderPhone },
-                { phone: invite.recipientPhone },
+                { phone: invite.senderPhone },
               ],
             },
           },
@@ -916,11 +855,11 @@ export async function verifyCodeAndAcceptInvite(req: any, res: Response) {
         });
 
         console.log(
-          `Created new relationship between ${invite.senderPhone} and ${invite.recipientPhone}`
+          `Created new relationship between ${invite.senderPhone} and ${invite.senderPhone}`
         );
       } else {
         console.log(
-          `Relationship already exists between ${invite.senderPhone} and ${invite.recipientPhone}`
+          `Relationship already exists between ${invite.senderPhone} and ${invite.senderPhone}`
         );
         relationship = existingRelationship;
       }

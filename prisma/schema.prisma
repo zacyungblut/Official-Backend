@@ -39,20 +39,17 @@ model Relationship {
 }
 
 model Invite {
-  id              String      @id @default(uuid())
-  senderPhone     String      // Phone of the user sending the invite
-  recipientPhone  String      // Phone number being invited (not necessarily a user yet)
-  status          InviteStatus @default(PENDING)
-  message         String?     // Optional custom message with the invite
+  id                String      @id @default(uuid())
+  senderPhone       String      // Phone of the user sending the invite
+  relationshipType  Status      // The type of relationship being requested
+  status            InviteStatus @default(PENDING)
+  message           String?     // Optional custom message with the invite
   
   // Relation to the user who sent the invite
-  sender          User        @relation("UserSentInvites", fields: [senderPhone], references: [phone])
+  sender            User        @relation("UserSentInvites", fields: [senderPhone], references: [phone])
   
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  
-  // Ensure a user can only have one pending invite to a specific phone number
-  @@unique([senderPhone, recipientPhone])
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 }
 
 // Enum for relationship types
