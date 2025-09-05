@@ -6,7 +6,7 @@ module.exports = {
       cwd: "/home/ec2-user/Official-Backend",
       env: {
         NODE_ENV: "production",
-        PORT: "4000",
+        PORT: "3000",
       },
       max_memory_restart: "2G",
       kill_timeout: 3000,
