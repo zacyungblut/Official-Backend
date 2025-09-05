@@ -239,7 +239,7 @@ export async function respondToInvite(
               },
               {
                 users: {
-                  some: { phone: invite.senderPhone },
+                  some: { phone: userPhone }, // Fix: use userPhone instead of invite.senderPhone
                 },
               },
               {
@@ -262,12 +262,12 @@ export async function respondToInvite(
           // Create new relationship and connect both users
           relationship = await tx.relationship.create({
             data: {
-              status: "DATING", // Default to DATING, can be customized later
+              status: invite.relationshipType, // Use the relationship type from the invite
               startDate: new Date(),
               users: {
                 connect: [
                   { phone: invite.senderPhone },
-                  { phone: invite.senderPhone },
+                  { phone: userPhone }, // Fix: use userPhone instead of invite.senderPhone
                 ],
               },
             },
@@ -283,11 +283,11 @@ export async function respondToInvite(
           });
 
           console.log(
-            `Created new relationship between ${invite.senderPhone} and ${invite.senderPhone}`
+            `Created new relationship between ${invite.senderPhone} and ${userPhone}`
           );
         } else {
           console.log(
-            `Relationship already exists between ${invite.senderPhone} and ${invite.senderPhone}`
+            `Relationship already exists between ${invite.senderPhone} and ${userPhone}`
           );
           relationship = existingRelationship;
         }
@@ -550,7 +550,7 @@ export async function respondToPublicInvite(req: any, res: Response) {
               },
               {
                 users: {
-                  some: { phone: invite.senderPhone },
+                  some: { phone: recipientUser.phone }, // Fix: use recipientUser.phone
                 },
               },
               {
@@ -573,12 +573,12 @@ export async function respondToPublicInvite(req: any, res: Response) {
           // Create new relationship and connect both users
           relationship = await tx.relationship.create({
             data: {
-              status: "DATING", // Default to DATING, can be customized later
+              status: invite.relationshipType, // Use the relationship type from the invite
               startDate: new Date(),
               users: {
                 connect: [
                   { phone: invite.senderPhone },
-                  { phone: invite.senderPhone },
+                  { phone: recipientUser.phone }, // Fix: use recipientUser.phone
                 ],
               },
             },
@@ -594,11 +594,11 @@ export async function respondToPublicInvite(req: any, res: Response) {
           });
 
           console.log(
-            `Created new relationship between ${invite.senderPhone} and ${invite.senderPhone}`
+            `Created new relationship between ${invite.senderPhone} and ${recipientUser.phone}`
           );
         } else {
           console.log(
-            `Relationship already exists between ${invite.senderPhone} and ${invite.senderPhone}`
+            `Relationship already exists between ${invite.senderPhone} and ${recipientUser.phone}`
           );
           relationship = existingRelationship;
         }
@@ -760,9 +760,9 @@ export async function verifyCodeAndAcceptInvite(req: any, res: Response) {
     }
 
     // Verify that the phone number matches the invite recipient
-    if (invite.senderPhone !== normalizedPhone) {
+    if (invite.senderPhone === normalizedPhone) {
       return res.status(400).json({
-        error: "Phone number does not match the invite recipient",
+        error: "Can't accept your own invite",
       });
     }
 
@@ -809,7 +809,7 @@ export async function verifyCodeAndAcceptInvite(req: any, res: Response) {
             },
             {
               users: {
-                some: { phone: invite.senderPhone },
+                some: { phone: normalizedPhone }, // Fix: use normalizedPhone
               },
             },
             {
@@ -834,12 +834,12 @@ export async function verifyCodeAndAcceptInvite(req: any, res: Response) {
         // Create new relationship and connect both users
         relationship = await tx.relationship.create({
           data: {
-            status: "DATING", // Default to DATING, can be customized later
+            status: invite.relationshipType, // Use the relationship type from the invite
             startDate: new Date(),
             users: {
               connect: [
                 { phone: invite.senderPhone },
-                { phone: invite.senderPhone },
+                { phone: normalizedPhone }, // Fix: use normalizedPhone
               ],
             },
           },
@@ -855,11 +855,11 @@ export async function verifyCodeAndAcceptInvite(req: any, res: Response) {
         });
 
         console.log(
-          `Created new relationship between ${invite.senderPhone} and ${invite.senderPhone}`
+          `Created new relationship between ${invite.senderPhone} and ${normalizedPhone}`
         );
       } else {
         console.log(
-          `Relationship already exists between ${invite.senderPhone} and ${invite.senderPhone}`
+          `Relationship already exists between ${invite.senderPhone} and ${normalizedPhone}`
         );
         relationship = existingRelationship;
       }

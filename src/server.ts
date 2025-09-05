@@ -4,6 +4,7 @@ import rateLimit from "express-rate-limit";
 import authRoutes from "./routes/authRoutes";
 import inviteRoutes from "./routes/inviteRoutes";
 import searchRoutes from "./routes/searchRoutes";
+import relationshipRoutes from "./routes/relationshipRoutes";
 
 const app = express();
 
@@ -31,7 +32,7 @@ const globalLimiter = rateLimit({
 // Extra strict rate limiting for auth routes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Limit each IP to 10 auth requests per 15 minutes
+  max: 100, // Limit each IP to 10 auth requests per 15 minutes
   message: {
     error: "Too many authentication attempts, please try again in 15 minutes.",
   },
@@ -74,6 +75,17 @@ const inviteLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Rate limiting for relationship operations
+const relationshipLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // Limit each IP to 50 relationship requests per 15 minutes
+  message: {
+    error: "Too many relationship requests, please try again later.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Apply global rate limiting to all requests
 app.use(globalLimiter);
 
@@ -83,11 +95,13 @@ app.use("/auth/signup", signupLimiter);
 app.use("/auth/verify", signupLimiter);
 app.use("/search", searchLimiter);
 app.use("/invites", inviteLimiter);
+app.use("/relationships", relationshipLimiter);
 
 // Routes
 app.use("/auth", authRoutes);
 app.use("/invites", inviteRoutes);
 app.use("/search", searchRoutes);
+app.use("/relationships", relationshipRoutes);
 
 app.get("/", (_req, res) => {
   res.send("API is running 🚀");
