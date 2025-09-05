@@ -110,7 +110,7 @@ async function sendSMSVerificationCode(
     });
 
     console.log(
-      `SMS verification code sent successfully to ${normalizedPhone}`
+      `SMS verification code sent successfully to ${normalizedPhone} with code ${code}`
     );
   } catch (error) {
     console.error("Twilio SMS error:", error);
